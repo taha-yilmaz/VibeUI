@@ -61,12 +61,20 @@ docker-compose up -d
 
 ### 3. Environment Variables
 
-Create a `.env` file in the root directory based on your setup. A typical configuration looks like this:
+Create a `.env` file in the root directory based on your setup. You can copy the provided `.env.example` file. A typical configuration looks like this:
 
 ```env
 DATABASE_URL="postgresql://vibeui:vibeui_password@localhost:5433/vibeuidb?schema=public"
 REDIS_URL="redis://localhost:6379"
 PORT=3000
+
+# Storage Configuration (Cloudflare R2 or AWS S3)
+S3_ENDPOINT="https://<account-id>.r2.cloudflarestorage.com"
+S3_REGION="auto"
+S3_ACCESS_KEY_ID="your_access_key_id"
+S3_SECRET_ACCESS_KEY="your_secret_access_key"
+S3_PUBLIC_URL="https://pub-xxxxxxxxxxxxxx.r2.dev"
+S3_BUCKET_NAME="your_bucket_name"
 ```
 
 ### 4. Install Backend Dependencies & Setup Database
