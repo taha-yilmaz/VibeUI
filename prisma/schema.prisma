@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  PARTIAL
+  FAILED
+}
+
+enum PageStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum PlanType {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model Plan {
+  id              String      @id @default(uuid())
+  name            String
+  type            PlanType    @unique
+  maxCrawlJobs    Int         @default(2)
+  maxDepth        Int         @default(1)
+  maxPagesPerJob  Int         @default(50)
+  maxAuthSessions Int         @default(0)
+  priceMonthly    Float       @default(0)
+  stripePriceId   String?
+  createdAt       DateTime    @default(now())
+  workspaces      Workspace[]
+}
+
+model User {
+  id            String            @id @default(uuid())
+  email         String            @unique
+  name          String
+  passwordHash  String?
+  avatarUrl     String?
+  isAnonymous   Boolean           @default(false)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  memberships   WorkspaceMember[]
+}
+
+model Workspace {
+  id                 String            @id @default(uuid())
+  name               String
+  slug               String            @unique
+  planId             String?
+  plan               Plan?             @relation(fields: [planId], references: [id])
+  stripeCustomerId   String?
+  stripeSubId        String?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  crawlJobsThisMonth Int               @default(0)
+  usageResetAt       DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  members            WorkspaceMember[]
+  crawlJobs          CrawlJob[]
+  authSessions       AuthSession[]
+}
+
+model WorkspaceMember {
+  id          String     @id @default(uuid())
+  userId      String
+  workspaceId String
+  role        MemberRole @default(MEMBER)
+  createdAt   DateTime   @default(now())
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+}
+
+model CrawlJob {
+  id              String         @id @default(uuid())
+  name            String?
+  targetUrl       String
+  status          JobStatus      @default(PENDING)
+  maxDepth        Int            @default(1)
+  maxPages        Int            @default(100)
+  pagesDiscovered Int            @default(0)
+  pagesProcessed  Int            @default(0)
+  retryCount      Int            @default(0)
+  errorMessage    String?
+  authSessionId   String?
+  workspaceId     String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  pages           ScrapedPage[]
+  authSession     AuthSession?   @relation(fields: [authSessionId], references: [id], onDelete: SetNull)
+  workspace       Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model ScrapedPage {
+  id                   String     @id @default(uuid())
+  jobId                String
+  url                  String
+  urlHash              String
+  title                String?
+  cleanHtml            String?
+  htmlSize             Int?
+  screenshotDesktopUrl String?
+  screenshotMobileUrl  String?
+  depthLevel           Int        @default(1)
+  status               PageStatus @default(PENDING)
+  errorMessage         String?
+  createdAt            DateTime   @default(now())
+  job                  CrawlJob   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, urlHash])
+}
+
+model CrawlLog {
+  id        String   @id @default(uuid())
+  jobId     String
+  level     String
+  message   String
+  createdAt DateTime @default(now())
+}
+
+model AuthSession {
+  id           String      @id @default(uuid())
+  name         String
+  storageState Json
+  workspaceId  String?
+  createdAt    DateTime    @default(now())
+  jobs         CrawlJob[]
+  workspace    Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
